@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SlicerConfig:
-    threshold_db: float = -40.0
-    min_length: float = 5000
-    min_interval: float = 300
-    hop_size: float = 10
-    max_silence: float = 1000
+    threshold_db: float = -40.0  # Less strict silence detection
+    min_length: float = 5000    # Shorter minimum segments
+    min_interval: float = 300    # Much shorter silence intervals
+    hop_size: float = 10       # Keep this the same
+    max_silence: float = 1000   # Less silence padding
 
 def random_word(length: int = 5) -> str:
     vowels = 'aeiou'
@@ -30,10 +30,9 @@ def random_word(length: int = 5) -> str:
         word += random.choice(consonants if i % 2 == 0 else vowels)
     return word
 
-
 class AudioSlicer:
-    def __init__(self):
-        self.config = SlicerConfig()
+    def __init__(self, config=None):
+        self.config = config if config else SlicerConfig()
         
     def _ms_to_samples(self, ms: float, sr: int) -> int:
         return int(np.floor(sr * ms / 1000))
@@ -54,7 +53,19 @@ class AudioSlicer:
         return np.nan_to_num(rms_db, neginf=self.config.threshold_db - 10)
         
     def _find_silence_regions(self, rms: np.ndarray, sr: int) -> List[Tuple[int, int]]:
-        silent_frames = rms < self.config.threshold_db
+        logger.info(f"RMS range: {np.min(rms):.1f}dB to {np.max(rms):.1f}dB")
+        
+        # Use a bit more sensitive threshold for initial detection
+        detection_threshold = self.config.threshold_db + 5
+        silent_frames = rms < detection_threshold
+        
+        # Merge very short non-silent regions
+        min_activity = int(0.03 * sr / self._ms_to_samples(self.config.hop_size, sr))  # 30ms
+        silent_frames = np.array([1 if sum(silent_frames[max(0, i-min_activity):min(len(silent_frames), i+min_activity+1)]) > min_activity 
+                                else 0 for i in range(len(silent_frames))])
+        
+        logger.info(f"Found {np.sum(silent_frames)} silent frames after merging")
+        
         changes = np.diff(silent_frames.astype(int), prepend=0, append=0)
         silence_starts = np.where(changes == 1)[0]
         silence_ends = np.where(changes == -1)[0]
@@ -62,34 +73,12 @@ class AudioSlicer:
         hop_samples = self._ms_to_samples(self.config.hop_size, sr)
         return [(int(start * hop_samples), int(end * hop_samples)) 
                 for start, end in zip(silence_starts, silence_ends)]
-    
-    def _process_segment(self, audio: np.ndarray, sr: int, start: int, end: int, 
-                        silence_start: int, silence_end: int) -> Optional[Tuple[int, np.ndarray]]:
-        min_samples = self._ms_to_samples(self.config.min_length, sr)
-        
-        if end - start < min_samples:
-            return None
-            
-        silence = audio[silence_start:silence_end]
-        if len(silence) > 1:
-            rms_silence = librosa.feature.rms(y=silence)[0]
-            cut_point = silence_start + np.argmin(rms_silence)
-        else:
-            cut_point = silence_start
-            
-        max_silence = self._ms_to_samples(self.config.max_silence, sr)
-        pad_before = min(max_silence // 2, cut_point - silence_start)
-        pad_after = min(max_silence // 2, silence_end - cut_point)
-        
-        segment = audio[max(0, start):min(cut_point + pad_after, len(audio))]
-        return cut_point - pad_before, segment
 
     def process_folder(self, input_folder: str) -> None:
         input_path = Path(input_folder)
         if not input_path.exists():
             raise FileNotFoundError(f"Folder not found: {input_path}")
 
-        # Create output folder next to input folder
         output_path = input_path / 'sliced_audio'
         output_path.mkdir(exist_ok=True)
 
@@ -97,6 +86,7 @@ class AudioSlicer:
         
         for audio_file in audio_files:
             try:
+                logger.info(f"Processing: {audio_file.name}")
                 y, sr = librosa.load(audio_file, sr=None)
                 if len(y) == 0 or np.isnan(y).any():
                     logger.warning(f"Skipping invalid file: {audio_file}")
@@ -104,58 +94,94 @@ class AudioSlicer:
 
                 rms = self._get_rms_frames(y, sr)
                 silence_regions = self._find_silence_regions(rms, sr)
+                logger.info(f"Found {len(silence_regions)} silence regions")
                 
                 min_interval = self._ms_to_samples(self.config.min_interval, sr)
+                original_regions = silence_regions.copy()
                 silence_regions = [
                     (start, end) for start, end in silence_regions
                     if end - start >= min_interval
                 ]
                 
+                # Debug information about silence regions
+                for i, (start, end) in enumerate(original_regions):
+                    length_ms = (end - start) * 1000 / sr
+                    logger.info(f"Silence region {i}: {length_ms:.0f}ms")
+                    
+                logger.info(f"After filtering minimum interval {self.config.min_interval}ms: {len(silence_regions)} valid silence regions")
+                
+                segments = []
                 last_end = 0
                 
-                for i, (silence_start, silence_end) in enumerate(silence_regions, 1):
-                    result = self._process_segment(
-                        y, sr, last_end, silence_start, 
-                        silence_start, silence_end
-                    )
+                # First identify all potential cut points
+                for i, (silence_start, silence_end) in enumerate(silence_regions):
+                    segment_length = silence_start - last_end
+                    min_samples = self._ms_to_samples(self.config.min_length, sr)
+                    segment_length_ms = segment_length * 1000 / sr
                     
-                    if result:
-                        new_end, segment = result
-                        if len(segment) > 0:
-                            output_file = output_path / f"{audio_file.stem}_{random_word()}_{i:03d}.wav"
-                            sf.write(output_file, segment, sr)
-                            last_end = new_end
+                    logger.info(f"Checking segment {i}: {segment_length_ms:.0f}ms (min: {self.config.min_length}ms)")
+                    
+                    # Either the segment is long enough, or it's the last segment
+                    if segment_length >= min_samples or i == len(silence_regions) - 1:
+                        # Find optimal cutting point
+                        silence = y[silence_start:silence_end]
+                        if len(silence) > 1:
+                            rms_silence = librosa.feature.rms(y=silence)[0]
+                            cut_point = silence_start + np.argmin(rms_silence)
+                        else:
+                            cut_point = silence_start
+                            
+                        segments.append((last_end, cut_point))
+                        last_end = cut_point
                 
-                if len(y) - last_end >= self._ms_to_samples(self.config.min_length, sr):
-                    final_segment = y[last_end:]
-                    if len(final_segment) > 0:
-                        output_file = output_path / f"{audio_file.stem}_{random_word()}_final.wav"
-                        sf.write(output_file, final_segment, sr)
+                # Add final segment if long enough
+                if len(y) - last_end >= min_samples:
+                    segments.append((last_end, len(y)))
                 
-                logger.info(f"Processed: {audio_file.name}")
+                # Save all segments
+                for i, (start, end) in enumerate(segments, 1):
+                    segment = y[start:end]
+                    if len(segment) > 0:
+                        output_file = output_path / f"{audio_file.stem}_{random_word()}_{i:03d}.wav"
+                        sf.write(output_file, segment, sr)
+                        logger.info(f"Created segment {i}: {(end-start) * 1000 / sr:.0f}ms")
+                
+                logger.info(f"Created {len(segments)} segments from {audio_file.name}")
                 
             except Exception as e:
                 logger.error(f"Failed to process {audio_file}: {str(e)}")
 
-
 def main():
     parser = argparse.ArgumentParser(description="Audio file slicer based on silence detection")
     parser.add_argument("input_folder", help="Folder containing audio files")
-    parser.add_argument("-t", "--threshold", type=float, default=-40.0, help="Silence threshold in dB")
-    parser.add_argument("-l", "--min_length", type=float, default=5000, help="Minimum segment length (ms)")
-    parser.add_argument("-i", "--min_interval", type=float, default=300, help="Minimum silence interval (ms)")
-    parser.add_argument("-s", "--hop_size", type=float, default=10, help="Analysis window size (ms)")
-    parser.add_argument("-m", "--max_silence", type=float, default=1000, help="Maximum silence to keep (ms)")
+    defaults = SlicerConfig()
+    parser.add_argument("-t", "--threshold", type=float, default=None, 
+                       help=f"Silence threshold in dB (default: {defaults.threshold_db})")
+    parser.add_argument("-l", "--min_length", type=float, default=None, 
+                       help=f"Minimum segment length in ms (default: {defaults.min_length})")
+    parser.add_argument("-i", "--min_interval", type=float, default=None, 
+                       help=f"Minimum silence interval in ms (default: {defaults.min_interval})")
+    parser.add_argument("-s", "--hop_size", type=float, default=None, 
+                       help=f"Analysis window size in ms (default: {defaults.hop_size})")
+    parser.add_argument("-m", "--max_silence", type=float, default=None, 
+                       help=f"Maximum silence to keep in ms (default: {defaults.max_silence})")
 
     args = parser.parse_args()
 
-    config = SlicerConfig(
-        threshold_db=args.threshold,
-        min_length=args.min_length,
-        min_interval=args.min_interval,
-        hop_size=args.hop_size,
-        max_silence=args.max_silence
-    )
+    # Create config with default values
+    config = SlicerConfig()
+    
+    # Override only the specified arguments
+    if args.threshold is not None:
+        config.threshold_db = args.threshold
+    if args.min_length is not None:
+        config.min_length = args.min_length
+    if args.min_interval is not None:
+        config.min_interval = args.min_interval
+    if args.hop_size is not None:
+        config.hop_size = args.hop_size
+    if args.max_silence is not None:
+        config.max_silence = args.max_silence
 
     try:
         slicer = AudioSlicer(config)
