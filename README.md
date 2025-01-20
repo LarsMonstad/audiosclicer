@@ -18,13 +18,13 @@ pip install -r requirements.txt
 
 ## PIP Installation 
 ```bash
-pip install lm-audioslicer
+pip install lm_audioslicer
 ```
 
 
 ## PIP usage 
 ```bash
-lm-audioslicer /path/to/audio/folder [options]
+lm_audioslicer /path/to/audio/folder [options]
 ```
 
 
@@ -47,7 +47,7 @@ python audioslicer.slice ./my_audio -t -35 -l 3000
 
 ### PIP example
 ```bash
-lm-audioslicer ./my_audio -t -35 -l 3000
+lm_audioslicer ./my_audio -t -35 -l 3000
 ```
 
 ## How It Works
