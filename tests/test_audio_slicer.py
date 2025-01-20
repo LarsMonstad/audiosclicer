@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from src.audio_slicer import AudioSlicer, SlicerConfig
+from audioslicer import AudioSlicer, SlicerConfig
 
 @pytest.fixture
 def default_config():
@@ -83,8 +83,8 @@ def test_process_folder_nonexistent():
 
 def test_main_with_args():
     with patch('sys.argv', ['script.py', 'test_folder', '-t', '-35', '-l', '4000']):
-        with patch('src.audio_slicer.AudioSlicer') as MockSlicer:
-            from src.audio_slicer import main
+        with patch('audioslicer.slicer.AudioSlicer') as MockSlicer:
+            from audioslicer.slicer import main
             main()
             config = MockSlicer.call_args[0][0]
             assert config.threshold_db == -35
