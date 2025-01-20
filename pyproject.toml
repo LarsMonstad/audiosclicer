@@ -1,18 +1,32 @@
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "lm_audioslicer"
-version = "0.1.5"
+version = "0.1.7"
 authors = [
   { name="Lars Monstad", email="lars.monstad@gmail.com" },
 ]
 description = "Tool for slicing long audio files for datasets"
 readme = "README.md"
 requires-python = ">=3.8"
+dependencies = [
+    "librosa==0.9.1",
+    "soundfile>=0.12.1",
+    "numpy==1.23.5",
+]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
 ]
 license = { file = "LICENSE" }
 
 [project.urls]
 Homepage = "https://github.com/LarsMonstad/audioslicer"
 Issues = "https://github.com/LarsMonstad/audioslicer/issues"
+
+[project.scripts]
+lm_audioslicer = "audioslicer.slicer:main"

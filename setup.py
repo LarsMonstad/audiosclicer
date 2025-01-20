@@ -1,16 +1,16 @@
 from setuptools import setup, find_packages
 setup(
     name="lm_audioslicer",
-    version="0.1.5",
-    packages=find_packages(),
+    version="0.1.7",
+    packages=find_packages(include=['audioslicer', 'audioslicer.*']),
     install_requires=[
         'librosa==0.9.1',
         'soundfile>=0.12.1',
         'numpy==1.23.5',
     ],
     author="Lars Monstad",
-    author_email="Lars.Monstad@gmail.com",
-    description="A tool for slicing audio files based on silence detection",
+    author_email="lars.monstad@gmail.com",
+    description="Tool for slicing long audio files for datasets",
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     url="https://github.com/LarsMonstad/audioslicer",
