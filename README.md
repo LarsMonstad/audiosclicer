@@ -11,14 +11,26 @@ A Python tool for automatically slicing audio files based on silence detection, 
 - Configurable silence thresholds and segment lengths
 - Maintains original sample rate
 
-## Installation
+## Installation 
 ```bash
-pip install librosa numpy soundfile
+pip install -r requirements.txt
 ```
+
+## PIP Installation 
+```bash
+pip install lm-audioslicer
+```
+
+
+## PIP usage 
+```bash
+lm-audioslicer /path/to/audio/folder [options]
+```
+
 
 ## Usage
 ```bash
-python audio_slicer.py /path/to/audio/folder [options]
+python audioslicer.slice /path/to/audio/folder [options]
 ```
 
 ### Options
@@ -30,7 +42,12 @@ python audio_slicer.py /path/to/audio/folder [options]
 
 ### Example
 ```bash
-python audio_slicer.py ./my_audio -t -35 -l 3000
+python audioslicer.slice ./my_audio -t -35 -l 3000
+```
+
+### PIP example
+```bash
+lm-audioslicer ./my_audio -t -35 -l 3000
 ```
 
 ## How It Works
