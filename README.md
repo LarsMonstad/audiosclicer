@@ -1,6 +1,10 @@
-# Audio Slicer
+# AudioSlicer
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Librosa](https://img.shields.io/badge/librosa-0.10.1-green.svg)](https://librosa.org/)
+[![NumPy](https://img.shields.io/badge/numpy-1.24.0-blue.svg)](https://numpy.org)
+[![SoundFile](https://img.shields.io/badge/soundfile-0.12.1-red.svg)](https://python-soundfile.readthedocs.io/)
+
 
 A Python tool for automatically slicing audio files based on silence detection, designed for creating ML datasets and processing large audio collections.
 
@@ -11,14 +15,21 @@ A Python tool for automatically slicing audio files based on silence detection, 
 - Configurable silence thresholds and segment lengths
 - Maintains original sample rate
 
-## Installation 
+
+## Installation
+
+You can install audioslicer either via pip or by cloning the repository:
+
+### Using pip
 ```bash
-pip install -r requirements.txt
+    pip install lm_audioslicer
 ```
 
-## PIP Installation 
+### From source
 ```bash
-pip install lm_audioslicer
+    git clone https://github.com/LarsMonstad/audioslicer.git
+    cd audioslicer
+    pip install -r requirements.txt
 ```
 
 
