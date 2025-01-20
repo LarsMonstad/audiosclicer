@@ -1,5 +1,5 @@
 [project]
-name = "audioslicer"
+name = "lm-audioslicer"
 version = "0.1.0"
 authors = [
   { name="Lars Monstad", email="lars.monstad@gmail.com" },
