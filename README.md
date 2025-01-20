@@ -30,7 +30,7 @@ lm_audioslicer /path/to/audio/folder [options]
 
 ## Usage
 ```bash
-python audioslicer.slice /path/to/audio/folder [options]
+python -m audioslicer.slicer /path/to/audio/folder [options]
 ```
 
 ### Options
@@ -42,7 +42,7 @@ python audioslicer.slice /path/to/audio/folder [options]
 
 ### Example
 ```bash
-python audioslicer.slice ./my_audio -t -35 -l 3000
+python audioslicer.slicer -m ./my_audio -t -35 -l 3000
 ```
 
 ### PIP example
