@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 setup(
     name="lm-audioslicer",
-    version="0.1.2",
+    version="0.1.3",
     packages=find_packages(),
     install_requires=[
         'librosa==0.9.1',
@@ -22,7 +22,7 @@ setup(
     python_requires='>=3.8',
     entry_points={
         'console_scripts': [
-            'audioslicer=audioslicer.slicer:main',
+            'lm-audioslicer=audioslicer.slicer:main',
         ],
     }
 )
