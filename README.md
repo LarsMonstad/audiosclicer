@@ -22,14 +22,14 @@ You can install audioslicer either via pip or by cloning the repository:
 
 ### Using pip
 ```bash
-    pip install lm_audioslicer
+pip install lm_audioslicer
 ```
 
 ### From source
 ```bash
-    git clone https://github.com/LarsMonstad/audioslicer.git
-    cd audioslicer
-    pip install -r requirements.txt
+git clone https://github.com/LarsMonstad/audioslicer.git
+cd audioslicer
+pip install -r requirements.txt
 ```
 
 
